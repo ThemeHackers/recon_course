@@ -1,7 +1,7 @@
 # 🕵️ Recon Course
 
-This project will demonstrate how to use the tools in ProjectDiscovery to efficiently investigate bug bounties.
-
+- This project will demonstrate how to use the tools in ProjectDiscovery to efficiently investigate bug bounties.
+- This tool is automated, it doesn't mean it's the most efficient, you should do it manually to get better results, but this automation is just my workflow.
 ## 📦 Install Tools
 
 ```bash
