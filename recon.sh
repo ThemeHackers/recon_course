@@ -68,9 +68,6 @@ info "[Step 3] Scanning top 100 TCP ports"
 cat "$OUTDIR/sub_alterx_dnsx.txt" | naabu -top-ports 100 -ep 22 -o "$OUTDIR/open_ports.txt"
 success "Open ports saved to $OUTDIR/open_ports.txt"
 
-# Optional dashboard
-cat "$OUTDIR/sub_alterx_dnsx.txt" | naabu -top-ports 100 -ep 22 -o "$OUTDIR/open_ports.txt" -dashboard
-
 # =============================
 # Step 4: HTTPX scan
 # =============================
@@ -91,9 +88,6 @@ success "Katana results saved to $OUTDIR/katana_jsl_jc.txt"
 info "[Step 6] Running httpx on Katana results"
 cat "$OUTDIR/katana_jsl_jc.txt" | httpx -title -sc -cl -location -o "$OUTDIR/httpx_katana_jsl_jc.txt"
 success "HTTP info from Katana saved to $OUTDIR/httpx_katana_jsl_jc.txt"
-
-# Optional dashboard
-cat "$OUTDIR/katana_jsl_jc.txt" | httpx -title -sc -cl -location -o "$OUTDIR/httpx_katana_jsl_jc.txt" -dashboard
 
 # =============================
 # Step 7: CDN/WAF check
