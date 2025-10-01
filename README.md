@@ -32,6 +32,34 @@ chmod +x recon.sh
 ./recon.sh 
 
 ```
+
+## 💻 A subdomain takeover detection tool for cool kids 
+```bash
+
+chmod +x Subdominator
+./Subdominator -h
+
+Description:
+  A subdomain takeover detection tool for cool kids
+
+Usage:
+  Subdominator [options]
+
+Options:
+  -d, --domain <domain>                  A single domain to check
+  DomainsFile, -l, --list <DomainsFile>  A list of domains to check (line delimited)
+  OutputFile, -o, --output <OutputFile>  Output subdomains to a file
+  -t, --threads <threads>                Number of domains to check at once [default: 50]
+  -v, --verbose                          Print extra information
+  -q, --quiet                            Quiet mode: Only print found results
+  CsvHeading, -c, --csv <CsvHeading>     Heading or column index to parse for CSV file. Forces -l to read as CSV instead of line-delimited
+  -eu, --exclude-unlikely                Exclude unlikely (edge-case) fingerprints
+  --validate                             Validate the takeovers are exploitable (where possible)
+  --version                              Show version information
+  -?, -h, --help                         Show help and usage information
+
+
+```
 ## 📌 Notes
 
 - Ensure all required dependencies are installed.
