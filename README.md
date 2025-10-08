@@ -10,21 +10,6 @@ chmod +x setup.sh
 sudo ./setup.sh
 
 ```
-
-## 📖 Text-based help messages
-```bash
-
-chmod +x hc_tools_txt.sh
-./hc_tools_txt.sh
-
-```
-## 💻 Request CLI help
-```bash
-
-chmod +x hc_tools.sh
-./hc_tools.sh
-
-```
 ## 🚀 Initiation of deployment and reconnaissance
 ```bash
 
