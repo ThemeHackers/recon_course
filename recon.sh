@@ -13,32 +13,12 @@ timestamp() { date +"%Y-%m-%d %H:%M:%S"; }
 info() { echo -e "${CYAN}[$(timestamp) i] $1${RESET}"; }
 success() { echo -e "${GREEN}[$(timestamp) ✓] $1${RESET}"; }
 error() { echo -e "${RED}[$(timestamp) x] $1${RESET}"; }
-warn() { echo -e "${YELLOW}[$(timestamp) !] $1${RESET}"; }
 
 # =============================
-# Dependency Check
-# =============================
-check_deps() {
-    info "Checking for required tools..."
-    local missing_deps=0
-    for tool in subfinder httpx naabu katana cdncheck; do
-        if ! command -v "$tool" &> /dev/null; then
-            error "$tool could not be found. Please install it."
-            missing_deps=1
-        fi
-    done
-    if [ "$missing_deps" -eq 1 ]; then
-        error "Aborting due to missing dependencies."
-        exit 1
-    fi
-    success "All required tools are installed."
-}
-
-# =============================
-# Main Script
+# Check input
 # =============================
 if [ -z "$1" ]; then
-    warn "Usage: $0 <domain>"
+    echo -e "${YELLOW}Usage: $0 <domain>${RESET}"
     exit 1
 fi
 
@@ -46,78 +26,75 @@ DOMAIN=$1
 OUTDIR="RECON-$DOMAIN"
 mkdir -p "$OUTDIR"
 
-# Check dependencies before starting
-check_deps
-
+# =============================
 # Welcome banner
-echo -e "\n${CYAN}==============================================${RESET}"
-echo -e "${CYAN}🔎 Efficient Recon for ${DOMAIN}${RESET}"
+# =============================
+echo -e "${CYAN}==============================================${RESET}"
+echo -e "${CYAN}🔎 Welcome to the Recon Tool for ${DOMAIN}${RESET}"
+echo -e "${CYAN}==============================================${RESET}"
+echo -e "${YELLOW}This tool will perform the following steps:${RESET}"
+echo -e "${YELLOW}1️ subfinder       ${RESET}- Enumerates all subdomains"
+echo -e "${YELLOW}2️ alterx + dnsx   ${RESET}- Checks alive subdomains"
+echo -e "${YELLOW}3️ naabu           ${RESET}- Scans top 100 TCP ports"
+echo -e "${YELLOW}4️ httpx           ${RESET}- Fetches HTTP info"
+echo -e "${YELLOW}5️ katana          ${RESET}- Discovers JS endpoints"
+echo -e "${YELLOW}6️ httpx (katana)  ${RESET}- HTTP info from Katana results"
+echo -e "${YELLOW}7️ cdncheck        ${RESET}- Checks CDN/WAF protections"
 echo -e "${CYAN}==============================================${RESET}"
 echo -e "${GREEN}All results will be saved in: ${OUTDIR}${RESET}"
 echo -e "${GREEN}Starting the recon process...${RESET}\n"
-sleep 1
+sleep 2
 
 info "Starting recon for $DOMAIN"
 
-# ================================================================
-# Step 1: Subdomain enumeration with Subfinder
-# ================================================================
-info "[1/5] Enumerating subdomains with Subfinder..."
-subfinder -d "$DOMAIN" -o "$OUTDIR/subdomains.txt"
-if [ ! -s "$OUTDIR/subdomains.txt" ]; then
-    error "Subfinder found no subdomains. Exiting."
-    exit 1
-fi
-success "Found $(wc -l < "$OUTDIR/subdomains.txt") subdomains. Saved to subdomains.txt"
+# =============================
+# Step 1: Subdomain enumeration
+# =============================
+info "[Step 1] Enumerating subdomains"
+subfinder -d "$DOMAIN" > "$OUTDIR/subdomains.txt"
+success "Subdomains saved to $OUTDIR/subdomains.txt"
 
-# ================================================================
-# Step 2: Find alive hosts with httpx
-# ================================================================
-info "[2/5] Probing for alive web hosts with httpx..."
-httpx -l "$OUTDIR/subdomains.txt" -sc -cl -o "$OUTDIR/alive_hosts.txt"
-if [ ! -s "$OUTDIR/alive_hosts.txt" ]; then
-    error "httpx found no alive web hosts. Exiting."
-    exit 1
-fi
-success "Found $(wc -l < "$OUTDIR/alive_hosts.txt") alive web hosts. Saved to alive_hosts.txt"
+# =============================
+# Step 2: Check alive subdomains
+# =============================
+info "[Step 2] Checking alive subdomains"
+cat "$OUTDIR/subdomains.txt" | alterx | dnsx > "$OUTDIR/sub_alterx_dnsx.txt"
+success "Alive subdomains saved to $OUTDIR/sub_alterx_dnsx.txt"
 
-# ================================================================
-# Step 3: Run parallel scans on alive hosts
-# ================================================================
-info "[3/5] Starting parallel scans (Port Scan, Crawling, CDN/WAF Check)..."
+# =============================
+# Step 3: Naabu top 100 ports
+# =============================
+info "[Step 3] Scanning top 100 TCP ports"
+cat "$OUTDIR/sub_alterx_dnsx.txt" | naabu -top-ports 100 -ep 22 -o "$OUTDIR/open_ports.txt"
+success "Open ports saved to $OUTDIR/open_ports.txt"
 
-# Task A: Port scan with Naabu -> Pipe to httpx for detailed info
-info "  -> (Task A) Scanning ports and gathering HTTP info..."
-naabu -l "$OUTDIR/alive_hosts.txt" -top-ports 100 -ep 22 -silent | httpx -title -tech-detect -sc -cl -fr -o "$OUTDIR/http_info.txt" &
+# =============================
+# Step 4: HTTPX scan
+# =============================
+info "[Step 4] Running httpx scan"
+cat "$OUTDIR/open_ports.txt" | httpx -title -sc -cl -location -fr -o "$OUTDIR/httpx.txt"
+success "HTTP info saved to $OUTDIR/httpx.txt"
 
-# Task B: Crawl endpoints with Katana
-info "  -> (Task B) Crawling for endpoints with Katana..."
-katana -l "$OUTDIR/alive_hosts.txt" -jc -jsl -o "$OUTDIR/katana_endpoints.txt" &
+# =============================
+# Step 5: Katana JS endpoints
+# =============================
+info "[Step 5] Discovering JS endpoints"
+cat "$OUTDIR/subdomains.txt" | katana -jsl -jc > "$OUTDIR/katana_jsl_jc.txt"
+success "Katana results saved to $OUTDIR/katana_jsl_jc.txt"
 
-# Task C: Check for CDN/WAF with cdncheck
-info "  -> (Task C) Checking CDN/WAF with cdncheck..."
-cdncheck -i "$OUTDIR/alive_hosts.txt" -cdn -waf -resp -o "$OUTDIR/cdn_info.txt" &
+# =============================
+# Step 6: HTTPX on Katana results
+# =============================
+info "[Step 6] Running httpx on Katana results"
+cat "$OUTDIR/katana_jsl_jc.txt" | httpx -title -sc -cl -location -o "$OUTDIR/httpx_katana_jsl_jc.txt"
+success "HTTP info from Katana saved to $OUTDIR/httpx_katana_jsl_jc.txt"
 
-# Wait for all background jobs to finish
-wait
-success "Parallel scans completed."
+# =============================
+# Step 7: CDN/WAF check
+# =============================
+info "[Step 7] Checking CDN/WAF"
+cat "$OUTDIR/subdomains.txt" | cdncheck -cdn -cloud -waf -resp -v > "$OUTDIR/cdncheck.txt"
+success "CDN/WAF check saved to $OUTDIR/cdncheck.txt"
 
-# ================================================================
-# Step 4: Validate endpoints found by Katana
-# ================================================================
-info "[4/5] Validating endpoints discovered by Katana..."
-if [ -s "$OUTDIR/katana_endpoints.txt" ]; then
-    httpx -l "$OUTDIR/katana_endpoints.txt" -sc -cl -title -o "$OUTDIR/katana_alive_endpoints.txt"
-    success "Validated Katana endpoints saved to katana_alive_endpoints.txt"
-else
-    warn "Katana found no endpoints to validate."
-fi
-
-# ================================================================
-# Step 5: Final Summary
-# ================================================================
-info "[5/5] Recon finished for $DOMAIN."
-success "All results are saved in the '$OUTDIR' directory."
-echo -e "${CYAN}==============================================${RESET}"
-ls -l "$OUTDIR"
-echo -e "${CYAN}==============================================${RESET}"
+success "Recon finished for $DOMAIN. All results are in $OUTDIR"
+                                                                     
